@@ -201,7 +201,7 @@ namespace AstroHybrid.App.Services
             return await tcs.Task;
         }
 
-        private Dictionary<string, string> BuildEnvironmentVariables(AppSettings settings, HardwareInfo? hardware)
+        public Dictionary<string, string> BuildEnvironmentVariables(AppSettings settings, HardwareInfo? hardware)
         {
             var env = new Dictionary<string, string>();
 
