@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             x:Class="AstroHybrid.Linux.Views.SetupView" x:DataType="vm:SetupViewModel">
+  <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h1" Text="Set up Astro Bot" />
+        <TextBlock Classes="note" Text="AstroHybrid converts the game from your own PS5 dump into a program your PC runs. Your dump is only read: nothing in it is changed." />
+        <TextBlock Classes="note" Text="{Binding DataDir, StringFormat='The game is set up in {0}.'}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card" IsVisible="{Binding LegacyAvailable}">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Previous AstroHybrid found" Margin="0" />
+        <CheckBox Content="Bring over my settings, saves, trophies and shader cache" IsChecked="{Binding ImportLegacy}" />
+        <TextBlock Classes="note" Text="{Binding LegacyPath, StringFormat='Copied from {0}; that install is left exactly as it is.'}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h2" Text="Game dump" Margin="0" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Text="{Binding DumpPath}" Watermark="Folder with eboot.bin, sce_sys, data ..." />
+          <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}" Margin="10,0,0,0" />
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0">
+          <Button Classes="accent play" Content="Set up" Command="{Binding StartCommand}" />
+          <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" VerticalAlignment="Center" />
+        </StackPanel>
+        <ProgressBar Value="{Binding Percent}" Maximum="100" IsVisible="{Binding Running}" />
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AstroHybrid.App.ViewModels"
+        xmlns:views="using:AstroHybrid.Linux.Views"
+        x:Class="AstroHybrid.Linux.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="AstroHybrid" Icon="/Assets/astrohybrid.png"
+        Width="1100" Height="740" MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+  <Grid ColumnDefinitions="240,*" RowDefinitions="*,Auto">
+
+    <!-- Sidebar -->
+    <Border Grid.RowSpan="2" Background="{StaticResource SidebarBackground}" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,0,1,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="16,18,16,18">
+          <Image Source="/Assets/astrohybrid.png" Width="40" Height="40" />
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="AstroHybrid" FontSize="18" FontWeight="Bold" />
+            <TextBlock Text="Astro Bot PC Port · Linux" Classes="small" />
+          </StackPanel>
+        </StackPanel>
+        <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,1,0,0" Padding="16,12">
+          <StackPanel Spacing="2">
+            <TextBlock Text="STATUS" Classes="small" />
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" MaxHeight="80" />
+            <TextBlock Text="{Binding AppVersionText}" Classes="small" Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+        <StackPanel x:Name="Nav" Margin="0,6" IsVisible="{Binding !SetupRequired}">
+          <Button Classes="nav" x:Name="NavHome" Content="Home" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.Home}" />
+          <Button Classes="nav" x:Name="NavGraphics" Content="Graphics" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.GraphicsSettings}" />
+          <Button Classes="nav" x:Name="NavController" Content="Controller" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.ControllerSettings}" />
+          <Button Classes="nav" x:Name="NavAdvanced" Content="Advanced" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.AdvancedSettings}" />
+          <Button Classes="nav" x:Name="NavCompatibility" Content="Compatibility" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.Compatibility}" />
+          <Button Classes="nav" x:Name="NavInstallation" Content="Installation" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:LauncherPage.Installation}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Page -->
+    <DockPanel Grid.Column="1">
+      <Border DockPanel.Dock="Top" Classes="card" Margin="28,20,28,0" IsVisible="{Binding ShowUpdateNotification}">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock FontWeight="SemiBold" Text="{Binding UpdateState.LatestUpdate.Version, StringFormat='AstroHybrid {0} is available'}" IsVisible="{Binding HasUpdateAction}" />
+            <TextBlock FontWeight="SemiBold" Text="The update is installed: restart the launcher to use it." IsVisible="{Binding IsUpdateReady}" />
+            <TextBlock Classes="small" Text="{Binding UpdateState.DownloadStatus}" />
+            <ProgressBar Value="{Binding UpdateState.DownloadPercent}" Maximum="100" IsVisible="{Binding UpdateState.IsDownloading}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Classes="accent" Content="Update" Command="{Binding DownloadUpdateCommand}" IsVisible="{Binding HasUpdateAction}" />
+            <Button Classes="accent" Content="Restart launcher" Command="{Binding RestartToUpdateCommand}" IsVisible="{Binding IsUpdateReady}" />
+            <Button Content="Skip this version" Command="{Binding IgnoreUpdateCommand}" IsVisible="{Binding HasUpdateAction}" />
+            <Button Content="✕" Command="{Binding DismissUpdateNotificationCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+      <ScrollViewer x:Name="PageScroll">
+        <ContentControl x:Name="PageHost" Margin="28,20,32,8" />
+      </ScrollViewer>
+    </DockPanel>
+
+    <!-- Bottom bar -->
+    <Border Grid.Column="1" Grid.Row="1" BorderBrush="{StaticResource CardBorder}" BorderThickness="0,1,0,0" Padding="28,14" IsVisible="{Binding !SetupRequired}">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button Content="Best Settings for This PC" Command="{Binding ApplyBestSettingsCommand}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" x:Name="LayerHint" Classes="small" VerticalAlignment="Center" Margin="16,0" TextWrapping="Wrap" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+          <Button Classes="play" Content="Stop" Command="{Binding StopGameCommand}" IsVisible="{Binding IsLaunching}" />
+          <Button Classes="accent play" Content="Play" Command="{Binding LaunchGameCommand}" IsVisible="{Binding !IsLaunching}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             x:Class="AstroHybrid.Linux.Views.InstallationView" x:DataType="vm:InstallationViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="h2" Text="Installation Status" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Status" />
+          <Panel Grid.Column="1">
+            <TextBlock Classes="good" Text="Installed" IsVisible="{Binding IsInstalled}" />
+            <TextBlock Classes="bad" Text="Not installed" IsVisible="{Binding !IsInstalled}" />
+          </Panel></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Game folder" /><SelectableTextBlock Grid.Column="1" Text="{Binding InstallPath}" TextWrapping="Wrap" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Game dump" /><SelectableTextBlock Grid.Column="1" Text="{Binding GameDumpPath}" TextWrapping="Wrap" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Game version" /><TextBlock Grid.Column="1" Text="{Binding GameVersion}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Title ID" /><TextBlock Grid.Column="1" Text="{Binding GameTitleId}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Installed" /><TextBlock Grid.Column="1" Text="{Binding InstalledAt}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Size (without the dump)" /><TextBlock Grid.Column="1" Text="{Binding InstallSize}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="AnyPS5" /><TextBlock Grid.Column="1" Text="{Binding AnyPs5Version}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Kyty" /><TextBlock Grid.Column="1" Text="{Binding KytyVersion}" /></Grid>
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Maintenance" />
+        <WrapPanel>
+          <Button Content="Repair Installation" Command="{Binding RepairCommand}" Margin="0,0,10,10" />
+          <Button Content="Rebuild Installation" Command="{Binding RebuildCommand}" Margin="0,0,10,10" />
+          <Button Content="Change Location" Command="{Binding ChangeLocationCommand}" Margin="0,0,10,10" />
+          <Button Content="Open Game Folder" Command="{Binding OpenInstallFolderCommand}" Margin="0,0,10,10" />
+          <Button Content="Open Log Folder" Command="{Binding OpenLogFolderCommand}" Margin="0,0,10,10" />
+          <Button Content="Export Support Logs" Command="{Binding ExportSupportLogsCommand}" Margin="0,0,10,10" />
+          <Button Content="Check for Updates" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).CheckForUpdatesCommand}" Margin="0,0,10,10" />
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+    <Border Classes="card bad">
+      <StackPanel>
+        <TextBlock Classes="h2 bad" Text="Danger Zone" />
+        <WrapPanel>
+          <Button Content="Run Setup Again" Command="{Binding RunSetupAgainCommand}" Margin="0,0,10,10" />
+          <Button Classes="danger" Content="Remove Game Files" Command="{Binding UninstallCommand}" Margin="0,0,10,10" />
+        </WrapPanel>
+        <TextBlock Classes="note" Text="Removing the game files keeps your saves and never touches your game dump." />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

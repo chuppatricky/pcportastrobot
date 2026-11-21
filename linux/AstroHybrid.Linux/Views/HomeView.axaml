@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             x:Class="AstroHybrid.Linux.Views.HomeView" x:DataType="vm:HomeViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel Orientation="Horizontal" Spacing="20">
+        <Image Source="/Assets/astrohybrid.png" Width="72" Height="72" />
+        <StackPanel VerticalAlignment="Center" Spacing="2">
+          <TextBlock Classes="h1" Text="Astro Bot" FontSize="30" />
+          <TextBlock Text="PC Native Port (AstroHybrid) for Linux" FontSize="17" Foreground="{StaticResource TextSecondary}" />
+          <TextBlock Classes="good" Text="{Binding GameStatus}" Margin="0,6,0,0" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <UniformGrid Columns="4" Margin="-6,0,-6,10">
+      <Border Classes="card" Margin="6,0">
+        <StackPanel>
+          <TextBlock Classes="small" Text="Game Version" />
+          <TextBlock FontSize="17" FontWeight="SemiBold" Text="{Binding GameVersion}" TextWrapping="Wrap" />
+          <TextBlock Classes="small" Text="{Binding GameTitleId, StringFormat='Title ID: {0}'}" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card" Margin="6,0">
+        <StackPanel>
+          <TextBlock Classes="small" Text="CPU" />
+          <TextBlock FontWeight="SemiBold" Text="{Binding CpuInfo}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card" Margin="6,0">
+        <StackPanel>
+          <TextBlock Classes="small" Text="GPU" />
+          <TextBlock FontWeight="SemiBold" Text="{Binding GpuInfo}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card" Margin="6,0">
+        <StackPanel>
+          <TextBlock Classes="small" Text="RAM / Display" />
+          <TextBlock FontWeight="SemiBold" Text="{Binding CompactMemoryDisplayInfo}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </UniformGrid>
+
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Current Graphics Configuration" />
+        <TextBlock FontFamily="monospace" Text="{Binding CurrentGraphicsConfig}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Quick Actions" />
+        <WrapPanel>
+          <Button Content="Graphics Settings" Command="{Binding NavigateToSettingsCommand}" Margin="0,0,10,10" />
+          <Button Content="Controller" Command="{Binding NavigateToControllerCommand}" Margin="0,0,10,10" />
+          <Button Content="Installation" Command="{Binding NavigateToInstallationCommand}" Margin="0,0,10,10" />
+          <Button Content="{Binding RayTracingToggleText}" Command="{Binding ToggleRayTracingCommand}" Margin="0,0,10,10" />
+        </WrapPanel>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock Classes="h2" Text="Help the project" Margin="0,0,0,4" />
+          <TextBlock Classes="note" Text="AstroHybrid is made by imnotsharingmyname; this is a Linux/AMD fork of it." />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Button Content="Support the author" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenSupportCommand}" />
+          <Button Content="Upstream project" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenContributeCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

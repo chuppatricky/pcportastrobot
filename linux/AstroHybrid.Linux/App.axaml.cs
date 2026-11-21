@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
@@ -11,7 +10,7 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime d)
-            d.MainWindow = new Window { Title = "AstroHybrid", Width = 800, Height = 500, Content = "AstroHybrid for Linux" };
+            d.MainWindow = new Views.MainWindow(new AstroHybrid.App.ViewModels.MainWindowViewModel(Platform.AppPaths.DataDir));
         base.OnFrameworkInitializationCompleted();
     }
 }

@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             xmlns:local="using:AstroHybrid.Linux.Views"
+             xmlns:m="using:AstroHybrid.App.Models"
+             x:Class="AstroHybrid.Linux.Views.ControllerView" x:DataType="vm:ControllerSettingsViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Controller" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Preferred Controller" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding ControllerLabels}" Index="{Binding ControllerIndex}" /></Grid>
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Vibration" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Strength" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+            <local:StableComboBox Items="{Binding RumbleLabels}" Index="{Binding RumbleIndex}" />
+            <NumericUpDown Value="{Binding RumbleCustomPercent}" Minimum="0" Maximum="200" Increment="5" FormatString="0" Width="130" IsVisible="{Binding IsCustomRumble}" />
+            <TextBlock Text="%" VerticalAlignment="Center" IsVisible="{Binding IsCustomRumble}" />
+          </StackPanel></Grid>
+        <CheckBox Content="Stronger vibration on Switch-style pads (third-party ones)" IsChecked="{Binding SwitchBoost}" Margin="230,4,0,0" />
+        <TextBlock Classes="note" Text="{Binding VibrationNote}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Motion Controls" />
+        <TextBlock Classes="note" Text="{Binding MotionNote}" Margin="0,0,0,8" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Right-stick tilt" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding TiltModeLabels}" Index="{Binding TiltModeIndex}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Tilt strength" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding TiltStrengthLabels}" Index="{Binding TiltStrengthIndex}" /></Grid>
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="DualSense Features (Triggers, Speaker &amp; Haptics)" />
+        <TextBlock Classes="note" Text="{Binding TriggerNote}" Margin="0,0,0,8" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Adaptive triggers" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding TriggerStrengthLabels}" Index="{Binding TriggerStrengthIndex}" /></Grid>
+        <CheckBox Content="Play sounds on the DualSense speaker" IsChecked="{Binding DualSenseSpeaker}" Margin="230,4,0,0" />
+        <TextBlock Classes="note" Text="Speaker audio and HD haptics use the connected DualSense over USB or Bluetooth. Untick the speaker to keep the controller silent; haptics stay on." />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Connected Controllers" />
+          <Button Grid.Column="1" Content="Refresh" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RefreshControllersCommand}" />
+        </Grid>
+        <TextBlock Classes="note" Text="No controller connected." IsVisible="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).Controllers.Count}" />
+        <ItemsControl ItemsSource="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).Controllers}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="m:ControllerInfo">
+              <Border Background="#141D33" CornerRadius="8" Padding="14,10" Margin="0,4">
+                <StackPanel>
+                  <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                  <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Classes="good" Text="{Binding Type}" />
+                    <TextBlock Classes="small" Text="Haptics" IsVisible="{Binding HasHaptics}" />
+                    <TextBlock Classes="small" Text="Motion" IsVisible="{Binding HasMotionSensors}" />
+                    <TextBlock Classes="small" Text="Adaptive triggers" IsVisible="{Binding HasTriggerEffects}" />
+                  </StackPanel>
+                  <TextBlock Classes="small" Text="{Binding InstanceId}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

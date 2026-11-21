@@ -87,6 +87,8 @@ cat > "$app/AppRun" <<'APPRUN'
 # The launcher is a self-contained .NET program; it finds its payload and relinker through $APPDIR.
 HERE=$(dirname "$(readlink -f "$0")")
 export APPDIR="${APPDIR:-$HERE}"
+# .NET reads the desktop language through the system's ICU; without ICU it would refuse to start.
+if ! ldconfig -p 2>/dev/null | grep -q 'libicuuc\.so'; then export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1; fi
 exec "$HERE/usr/lib/astrohybrid/astrohybrid" "$@"
 APPRUN
 chmod 755 "$app/AppRun"

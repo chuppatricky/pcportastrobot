@@ -74,3 +74,33 @@ public sealed class SetupTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_root, "data")));
     }
 }
+
+public sealed class DumpSafetyTests : IDisposable
+{
+    private readonly string _root = Directory.CreateTempSubdirectory("ah-dump-safety-").FullName;
+    public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    /// <summary>Upstream's DeleteTree (uninstall, setup) must remove app0's links as links: on Linux they are
+    /// symlinks and hard links into the player's dump, whose files must survive.</summary>
+    [Fact]
+    public void DeleteTreeRemovesSymlinksAndHardLinksWithoutTouchingTheDump()
+    {
+        var dump = Path.Combine(_root, "dump");
+        Directory.CreateDirectory(Path.Combine(dump, "data", "levels"));
+        File.WriteAllText(Path.Combine(dump, "data", "levels", "a.bin"), "LEVEL");
+        File.WriteAllText(Path.Combine(dump, "eboot.bin"), "EBOOT");
+        var app0 = Path.Combine(_root, "app0");
+        Directory.CreateDirectory(app0);
+        Directory.CreateSymbolicLink(Path.Combine(app0, "data"), Path.Combine(dump, "data"));
+        Assert.Equal(0, link(Path.Combine(dump, "eboot.bin"), Path.Combine(app0, "eboot.bin")));
+
+        GameSetup.DeleteTree(app0);
+
+        Assert.False(Directory.Exists(app0));
+        Assert.Equal("LEVEL", File.ReadAllText(Path.Combine(dump, "data", "levels", "a.bin")));
+        Assert.Equal("EBOOT", File.ReadAllText(Path.Combine(dump, "eboot.bin")));
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    private static extern int link(string existing, string newPath);
+}

@@ -11,7 +11,9 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Real cultures (system ICU): the game's "Auto" language follows the desktop language (LANG); in
+         invariant mode every language would read as English. AppRun falls back when ICU is missing. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
 
@@ -21,6 +23,14 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.23" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.23" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Upstream's page view models, unchanged: they bind to MainWindowViewModel and RelayCommand, which
+         ViewModels/ replaces with Linux versions of the same names. -->
+    <Compile Include="../../AstroHybrid.App/ViewModels/ViewModelBase.cs;../../AstroHybrid.App/ViewModels/HomeViewModel.cs;../../AstroHybrid.App/ViewModels/GraphicsSettingsViewModel.cs;../../AstroHybrid.App/ViewModels/ControllerSettingsViewModel.cs;../../AstroHybrid.App/ViewModels/AdvancedSettingsViewModel.cs;../../AstroHybrid.App/ViewModels/InstallationViewModel.cs" LinkBase="Upstream/ViewModels" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="../../AstroHybrid.App/Resources/astrohybrid.png" Link="Assets/astrohybrid.png" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../AstroHybrid.Core/AstroHybrid.Core.csproj" />

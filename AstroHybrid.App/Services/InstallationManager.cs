@@ -186,12 +186,12 @@ namespace AstroHybrid.App.Services
                 "kyty_gpu.dll",
                 "astrohybrid_host.dll",
                 "u59-preset.cmd",
-                "libs\\libc.prx",
-                "libs\\libkernel.prx",
-                "libs\\libScePad.prx",
-                "libs\\libSceAgc.prx",
-                "libs\\libSceAgcDriver.prx",
-                "libs\\libSceVideoOut.prx"
+                Path.Combine("libs", "libc.prx"),
+                Path.Combine("libs", "libkernel.prx"),
+                Path.Combine("libs", "libScePad.prx"),
+                Path.Combine("libs", "libSceAgc.prx"),
+                Path.Combine("libs", "libSceAgcDriver.prx"),
+                Path.Combine("libs", "libSceVideoOut.prx")
             };
 
             foreach (var file in requiredFiles)

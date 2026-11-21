@@ -1,4 +1,135 @@
-<Application xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="AstroHybrid.Linux.App" RequestedThemeVariant="Dark">
-  <Application.Styles><FluentTheme /></Application.Styles>
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AstroHybrid.Linux.App"
+             RequestedThemeVariant="Dark">
+  <!-- The look of upstream's launcher (Resources/Styles.xaml): navy panels, cards and a blue accent,
+       written as Avalonia styles on top of the Fluent theme. -->
+  <Application.Resources>
+    <SolidColorBrush x:Key="AppBackground" Color="#121A2C" />
+    <SolidColorBrush x:Key="SidebarBackground" Color="#172036" />
+    <SolidColorBrush x:Key="CardBackground" Color="#1A2440" />
+    <SolidColorBrush x:Key="CardBorder" Color="#2A3858" />
+    <SolidColorBrush x:Key="Accent" Color="#0A66D0" />
+    <SolidColorBrush x:Key="AccentHover" Color="#2B7DE0" />
+    <SolidColorBrush x:Key="TextSecondary" Color="#8B96B0" />
+    <SolidColorBrush x:Key="Good" Color="#3DDC97" />
+    <SolidColorBrush x:Key="Bad" Color="#FF6B6B" />
+    <SolidColorBrush x:Key="Warn" Color="#F2C14E" />
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark" Accent="#0A66D0" RegionColor="#121A2C" AltHigh="#121A2C" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{StaticResource AppBackground}" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{StaticResource CardBackground}" />
+      <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="22,18" />
+      <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+    <Style Selector="Border.card.bad">
+      <Setter Property="BorderBrush" Value="{StaticResource Bad}" />
+    </Style>
+
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="26" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="#C5CDE0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.note, SelectableTextBlock.note">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style Selector="TextBlock.small">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.good">
+      <Setter Property="Foreground" Value="{StaticResource Good}" />
+    </Style>
+    <Style Selector="TextBlock.bad, SelectableTextBlock.bad">
+      <Setter Property="Foreground" Value="{StaticResource Bad}" />
+    </Style>
+
+    <!-- A settings row: label on the left, control on the right. -->
+    <Style Selector="Grid.row">
+      <Setter Property="Margin" Value="0,6" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="MinWidth" Value="320" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="Button.accent">
+      <Setter Property="Background" Value="{StaticResource Accent}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource AccentHover}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.play">
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="MinWidth" Value="150" />
+      <Setter Property="Height" Value="48" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Foreground" Value="{StaticResource Bad}" />
+    </Style>
+
+    <!-- Sidebar navigation -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="18,11" />
+      <Setter Property="Margin" Value="6,2" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Foreground" Value="#C5CDE0" />
+    </Style>
+    <Style Selector="Button.nav.selected">
+      <Setter Property="Background" Value="#1E3460" />
+      <Setter Property="Foreground" Value="#5AA2FF" />
+      <Setter Property="BorderBrush" Value="{StaticResource Accent}" />
+      <Setter Property="BorderThickness" Value="0,0,3,0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+      <Setter Property="Background" Value="#141D33" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Expander /template/ Border#ExpanderContent">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="ListBox.layers > ListBoxItem">
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Margin" Value="0,2" />
+    </Style>
+  </Application.Styles>
 </Application>
