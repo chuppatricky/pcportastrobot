@@ -59,6 +59,9 @@ public sealed record RunRequest
     public IReadOnlyList<string> Wrappers { get; init; } = Array.Empty<string>();
     /// <summary>nice(1) adjustment for the runner process; 0 = none, negative = higher priority (needs permission; ignored on failure).</summary>
     public int Nice { get; init; }
+    /// <summary>Host paths the program must see inside Proton's runtime container besides $HOME
+    /// (e.g. a game dump on another drive: app0's symlinks point there). Ignored for plain Wine.</summary>
+    public IReadOnlyList<string> ExtraPaths { get; init; } = Array.Empty<string>();
 }
 
 public sealed class RunHandle
@@ -71,6 +74,8 @@ public sealed class RunHandle
     public required string Prefix { get; init; }
     /// <summary>Completes with the exit code once the runner process (and therefore the game) exits.</summary>
     public required Task<int> Exited { get; init; }
+    /// <summary>File name of the started .exe; the verifier prefers the Wine process running it.</summary>
+    public string ExeName { get; init; } = "";
 }
 
 public interface IRunner
