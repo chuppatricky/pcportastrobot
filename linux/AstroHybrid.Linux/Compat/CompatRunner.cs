@@ -152,8 +152,9 @@ public sealed class CompatRunner : IRunner
     {
         var protonLog = protonLogOverride ?? r.ProtonLog;
         var env = new Dictionary<string, string>(r.Environment);
-        // Wine's debug channels cost time per call they log (an exception each, with +seh); off unless asked for.
-        if (!protonLog) env.TryAdd("WINEDEBUG", "-all");
+        // Wine's debug channels cost time per call they log (an exception each, with +seh); off unless asked
+        // for, by the Proton log or by a WINEDEBUG the launcher itself was started with (diagnostics).
+        if (!protonLog && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WINEDEBUG"))) env.TryAdd("WINEDEBUG", "-all");
         env["WINEPREFIX"] = prefix;
         env["ASTROHYBRID_COMPAT_SESSION"] = session;
         env["ASTROHYBRID_COMPAT_LAYER"] = r.Layer.Id;
