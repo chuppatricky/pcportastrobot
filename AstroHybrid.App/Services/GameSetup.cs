@@ -68,8 +68,16 @@ namespace AstroHybrid.App.Services
         {
             _root = rootDirectory;
             _runHybrid = Path.Combine(rootDirectory, "Build", "RunHybrid");
-            _relinker = Path.Combine(rootDirectory, "tools", "relinker.exe");
+            _relinker = OnWindows ? Path.Combine(rootDirectory, "tools", "relinker.exe")
+                : LinuxRelinker ?? Path.Combine(rootDirectory, "tools", "relinker");
         }
+
+        // Linux launcher (linux/): the native build of the same relinker, which writes the same Windows program.
+        // It ships inside the AppImage, so the launcher points here instead of <root>/tools.
+        public static string? LinuxRelinker { get; set; }
+
+        // RuntimeInformation rather than OperatingSystem: the Windows launcher is built for .NET Framework 4.8.
+        private static bool OnWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         public bool IsReleaseLayout => File.Exists(_relinker) && File.Exists(Path.Combine(_runHybrid, "kyty_gpu.dll"));
 
@@ -104,6 +112,9 @@ namespace AstroHybrid.App.Services
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool CreateHardLink(string fileName, string existingFileName, IntPtr securityAttributes);
+
+        [DllImport("libc", EntryPoint = "link", SetLastError = true)]
+        private static extern int PosixLink(string existingFileName, string fileName);
 
         public async Task<GameFeatures> RunAsync(string dump, IProgress<(int Percent, string Message)>? progress = null)
         {
@@ -306,6 +317,19 @@ namespace AstroHybrid.App.Services
 
         public static string CpuVendor()
         {
+            if (!OnWindows)
+            {
+                // "vendor_id	: AuthenticAMD"
+                try
+                {
+                    var line = File.ReadLines("/proc/cpuinfo").FirstOrDefault(l => l.StartsWith("vendor_id", StringComparison.Ordinal));
+                    return line == null ? "" : line.Substring(line.IndexOf(':') + 1).Trim();
+                }
+                catch (IOException)
+                {
+                    return "";
+                }
+            }
             try
             {
                 return Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "VendorIdentifier", null) as string ?? "";
@@ -402,6 +426,23 @@ namespace AstroHybrid.App.Services
             {
                 var name = Path.GetFileName(dir);
                 if (name.Equals("sce_module", StringComparison.OrdinalIgnoreCase)) continue;
+#if NET
+                if (!OnWindows)
+                {
+                    // Linux: a plain symbolic link, which every Wine and Proton follows. (Wine's own mklink /J makes
+                    // Wine-private reparse points that other Wine builds and Linux tools cannot read.)
+                    try
+                    {
+                        Directory.CreateSymbolicLink(Path.Combine(app0, name), dir);
+                    }
+                    catch (IOException ex)
+                    {
+                        aliases.Add($"/app0/{name}={dir}");
+                        log($"app0/{name}: read from the dump through APS5_PATH_ALIASES (symbolic link refused: {ex.Message})");
+                    }
+                    continue;
+                }
+#endif
                 var (code, output) = RunProcess("cmd.exe", $"/c mklink /J \"{Path.Combine(app0, name)}\" \"{dir}\"", app0);
                 if (code != 0)
                 {
@@ -490,7 +531,8 @@ namespace AstroHybrid.App.Services
 
         private static void LinkOrCopy(string source, string target)
         {
-            if (!CreateHardLink(target, source, IntPtr.Zero))
+            var linked = OnWindows ? CreateHardLink(target, source, IntPtr.Zero) : PosixLink(source, target) == 0;
+            if (!linked)
                 File.Copy(source, target, true);
         }
 
