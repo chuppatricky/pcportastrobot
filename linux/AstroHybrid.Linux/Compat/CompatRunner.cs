@@ -66,8 +66,13 @@ public sealed class CompatRunner : IRunner
         var prefix = PrefixFor(request.Layer);
         Directory.CreateDirectory(prefix);
         Directory.CreateDirectory(_logsDir);
-        var (argv, env) = BuildCommand(request, session, prefix);
-        var process = Spawn(argv, env, request.WorkingDirectory, request.StdoutLog, request.StderrLog);
+        var wrapped = request.RedirectInWine ? WrapInCmd(request) : null;
+        var (argv, env) = BuildCommand(wrapped ?? request, session, prefix);
+        // Wrapped, the program's output goes to its logs from inside Wine; what umu/Proton/Wine print
+        // on the Linux side goes to Logs/game-launch.log.
+        var process = wrapped != null
+            ? Spawn(argv, env, request.WorkingDirectory, LaunchLog, LaunchLog)
+            : Spawn(argv, env, request.WorkingDirectory, request.StdoutLog, request.StderrLog);
         return Task.FromResult(new RunHandle
         {
             SessionId = session,
@@ -93,7 +98,7 @@ public sealed class CompatRunner : IRunner
             StderrLog = ToolLog,
             Environment = new Dictionary<string, string> { ["WINEDEBUG"] = "-all" },
         };
-        var (argv, env) = BuildCommand(request, "tool", PrefixFor(layer), protonLog: false);
+        var (argv, env) = BuildCommand(request, "tool", PrefixFor(layer), protonLogOverride: false);
         using var process = Spawn(argv, env, _prefixesDir, ToolLog, ToolLog, append: true);
         try { await process.WaitForExitAsync(ct); }
         catch (OperationCanceledException) { TryKill(process); throw; }
@@ -101,6 +106,36 @@ public sealed class CompatRunner : IRunner
     }
 
     private string ToolLog => Path.Combine(_logsDir, "compat-tool.log");
+    private string LaunchLog => Path.Combine(_logsDir, "game-launch.log");
+
+    /// <summary>The same program started by the layer's cmd.exe running Logs/astrohybrid-launch.cmd, which
+    /// redirects its output to the request's logs inside Wine. Null (no wrapping) when the layer has no
+    /// cmd.exe on disk or a path cannot be written in a batch file.</summary>
+    internal RunRequest WrapInCmd(RunRequest r)
+    {
+        var cmd = BuiltinExe(r.Layer, "cmd.exe");
+        if (r.Layer.Kind == CompatKind.Proton && !File.Exists(cmd)) return null;
+        var script = LaunchScript(r);
+        if (script == null) return null;
+        Directory.CreateDirectory(_logsDir);
+        var path = Path.Combine(_logsDir, "astrohybrid-launch.cmd");
+        File.WriteAllText(path, script);
+        return r with { ExePath = cmd, Args = new[] { "/c", WinPath.ToWindows(path) }, RedirectInWine = false };
+    }
+
+    /// <summary>The batch file of <see cref="WrapInCmd"/>: run the program, output to its logs, pass its exit code on.
+    /// Null when a path or argument holds characters cmd would read differently (non-ASCII, quotes, newlines).</summary>
+    internal static string LaunchScript(RunRequest r)
+    {
+        static string Quote(string s) => "\"" + s.Replace("%", "%%") + "\"";
+        var raw = new[] { r.ExePath, r.StdoutLog ?? "", r.StderrLog ?? "" }.Concat(r.Args);
+        if (raw.Any(s => s.Any(c => c > 126 || c < 32 || c == '"'))) return null;
+        var parts = new List<string> { Quote(WinPath.ToWindows(r.ExePath)) };
+        parts.AddRange(r.Args.Select(a => a.Any(c => c == ' ' || c == '&' || c == '|' || c == '<' || c == '>' || c == '^') ? Quote(a) : a.Replace("%", "%%")));
+        if (r.StdoutLog != null) parts.Add("1>" + Quote(WinPath.ToWindows(r.StdoutLog)));
+        if (r.StderrLog != null) parts.Add("2>" + Quote(WinPath.ToWindows(r.StderrLog)));
+        return "@echo off\r\n" + string.Join(' ', parts) + "\r\nexit /b %ERRORLEVEL%\r\n";
+    }
 
     /// <summary>A program that ships with the layer's Wine, by Linux path (umu-run needs a real file).</summary>
     internal static string BuiltinExe(CompatLayer layer, string name)
@@ -113,9 +148,12 @@ public sealed class CompatRunner : IRunner
     }
 
     /// <summary>The command line and environment for one run. Pure, so tests can check it.</summary>
-    internal (List<string> Argv, Dictionary<string, string> Env) BuildCommand(RunRequest r, string session, string prefix, bool protonLog = true)
+    internal (List<string> Argv, Dictionary<string, string> Env) BuildCommand(RunRequest r, string session, string prefix, bool? protonLogOverride = null)
     {
+        var protonLog = protonLogOverride ?? r.ProtonLog;
         var env = new Dictionary<string, string>(r.Environment);
+        // Wine's debug channels cost time per call they log (an exception each, with +seh); off unless asked for.
+        if (!protonLog) env.TryAdd("WINEDEBUG", "-all");
         env["WINEPREFIX"] = prefix;
         env["ASTROHYBRID_COMPAT_SESSION"] = session;
         env["ASTROHYBRID_COMPAT_LAYER"] = r.Layer.Id;

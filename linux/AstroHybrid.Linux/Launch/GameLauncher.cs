@@ -54,6 +54,7 @@ public sealed class GameLauncher
             Environment = env,
             StdoutLog = Path.Combine(Logs, "hybrid-run.out.log"),
             StderrLog = Path.Combine(Logs, "hybrid-run.err.log"),
+            RedirectInWine = true,
             Wrappers = linux.GameMode ? new[] { "gamemoderun" } : Array.Empty<string>(),
             Nice = PriorityToNice(env.GetValueOrDefault("ASTROHYBRID_PRIORITY")),
             ExtraPaths = PathsOutsideHome(),

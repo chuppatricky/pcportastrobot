@@ -55,6 +55,14 @@ public sealed record RunRequest
     public IReadOnlyDictionary<string, string> Environment { get; init; } = new Dictionary<string, string>();
     public string StdoutLog { get; init; }
     public string StderrLog { get; init; }
+    /// <summary>Redirect stdout/stderr inside Wine, as upstream's Run-AstroHybrid.bat does (cmd.exe with
+    /// 1&gt;file 2&gt;file), instead of on the Linux side: Proton starts the program through its steam.exe,
+    /// which gives a GUI program no stdout, so a Linux-side redirect receives nothing.</summary>
+    public bool RedirectInWine { get; init; }
+    /// <summary>Write Proton's own log (PROTON_LOG=1 → Logs/steam-*.log), which the layer check quotes.
+    /// Never for the game: it turns on Wine's +seh channel, a log line per exception, and Kyty's guest
+    /// write tracking raises thousands of exceptions per frame.</summary>
+    public bool ProtonLog { get; init; }
     /// <summary>Optional wrappers prepended to the command (e.g. "gamemoderun", "mangohud").</summary>
     public IReadOnlyList<string> Wrappers { get; init; } = Array.Empty<string>();
     /// <summary>nice(1) adjustment for the runner process; 0 = none, negative = higher priority (needs permission; ignored on failure).</summary>

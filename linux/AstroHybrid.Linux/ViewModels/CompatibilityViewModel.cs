@@ -161,6 +161,7 @@ public sealed class CompatibilityViewModel : ViewModelBase
                 WorkingDirectory = AppPaths.DataDir,
                 StdoutLog = Path.Combine(AppPaths.LogsDir, "compat-test.log"),
                 StderrLog = Path.Combine(AppPaths.LogsDir, "compat-test.log"),
+            ProtonLog = true,   // the check quotes the Proton build from its log
             }, CancellationToken.None);
             var v = await LinuxServices.Verifier.VerifyAsync(handle, TimeSpan.FromSeconds(90), CancellationToken.None);
             await handle.Exited;

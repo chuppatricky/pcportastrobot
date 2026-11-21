@@ -13,7 +13,7 @@ internal static partial class Cli
     {
         Commands["layers"] = ("list the Wine/Proton builds the game can run through", _ => Layers());
         Commands["prefix"] = ("<layer-id>  create or update that layer's prefix", a => Prefix(a));
-        Commands["run"] = ("[--expect <id>] <layer-id> <exe|builtin.exe> [args]  run a program through a layer and verify it", a => RunVerify(a));
+        Commands["run"] = ("[--expect <id>] [--redirect-in-wine] <layer-id> <exe|builtin.exe> [args]  run a program through a layer and verify it", a => RunVerify(a));
         Commands["verify"] = ("show the last layer verification", _ => ShowVerification(Services.Verifier.LastResult()));
     }
 
@@ -49,8 +49,14 @@ internal static partial class Cli
     private static int RunVerify(string[] a)
     {
         CompatLayer expect = null;
-        if (a.Length >= 2 && a[0] == "--expect") { expect = RequireLayer(a[1]); a = a[2..]; }
-        if (a.Length < 2) throw new ArgumentException("usage: run [--expect <layer-id>] <layer-id> <exe> [args...]");
+        var redirectInWine = false;
+        while (a.Length >= 1 && a[0].StartsWith("--", StringComparison.Ordinal))
+        {
+            if (a[0] == "--expect" && a.Length >= 2) { expect = RequireLayer(a[1]); a = a[2..]; }
+            else if (a[0] == "--redirect-in-wine") { redirectInWine = true; a = a[1..]; }
+            else break;
+        }
+        if (a.Length < 2) throw new ArgumentException("usage: run [--expect <layer-id>] [--redirect-in-wine] <layer-id> <exe> [args...]");
         var layer = RequireLayer(a[0]);
         var exe = File.Exists(a[1]) ? Path.GetFullPath(a[1]) : CompatRunner.BuiltinExe(layer, a[1]);
         Directory.CreateDirectory(AppPaths.LogsDir);
@@ -62,6 +68,8 @@ internal static partial class Cli
             WorkingDirectory = Directory.GetCurrentDirectory(),
             StdoutLog = Path.Combine(AppPaths.LogsDir, "compat-run.out.log"),
             StderrLog = Path.Combine(AppPaths.LogsDir, "compat-run.err.log"),
+            ProtonLog = true,   // the check quotes the Proton build from its log
+            RedirectInWine = redirectInWine,   // as the game is started: output redirected by cmd.exe inside Wine
         }, CancellationToken.None).GetAwaiter().GetResult();
         Console.WriteLine($"started pid {handle.Process.Id} through {layer.DisplayName}, prefix {handle.Prefix}");
         var checkAgainst = expect == null ? handle : new RunHandle

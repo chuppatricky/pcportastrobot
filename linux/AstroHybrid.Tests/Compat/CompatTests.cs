@@ -179,7 +179,8 @@ public sealed class CompatTests : IDisposable
         Assert.Equal(Path.Combine(_root, "prefixes", "proton-cachyos-latest"), env["WINEPREFIX"]);
         Assert.Equal("umu-default", env["GAMEID"]);
         Assert.Equal("abc", env["ASTROHYBRID_COMPAT_SESSION"]);
-        Assert.Equal("1", env["PROTON_LOG"]);
+        Assert.False(env.ContainsKey("PROTON_LOG"));   // off for the game: +seh logs every write fault
+        Assert.Equal("-all", env["WINEDEBUG"]);
         Assert.Equal("/mnt/games", env["STEAM_COMPAT_LIBRARY_PATHS"]);
         Assert.Equal("/mnt/games", env["PRESSURE_VESSEL_FILESYSTEMS_RW"]);
         Assert.Equal("2560", env["KYTY_GPU_WIDTH"]);
@@ -192,6 +193,38 @@ public sealed class CompatTests : IDisposable
         var layer = new CompatLayer { Id = "ge", DisplayName = "x", Kind = CompatKind.Proton, Path = "/p" };
         var (_, env) = Runner(nvidia: true).BuildCommand(Request(layer), "s", "/pfx");
         Assert.Equal("1", env["PROTON_ENABLE_NVAPI"]);
+    }
+
+    [Fact]
+    public void TheProtonLogOnlyWhenAskedFor()
+    {
+        var layer = new CompatLayer { Id = "p", DisplayName = "x", Kind = CompatKind.Proton, Path = "/p" };
+        var (_, env) = Runner().BuildCommand(Request(layer) with { ProtonLog = true }, "s", "/pfx");
+        Assert.Equal("1", env["PROTON_LOG"]);
+        Assert.Equal(Path.Combine(_root, "Logs"), env["PROTON_LOG_DIR"]);
+        Assert.False(env.ContainsKey("WINEDEBUG"));   // Proton sets its own for the log
+        var (_, tool) = Runner().BuildCommand(Request(layer) with { ProtonLog = true }, "s", "/pfx", protonLogOverride: false);
+        Assert.False(tool.ContainsKey("PROTON_LOG"));
+    }
+
+    [Fact]
+    public void TheGameIsStartedByCmdWhichRedirectsItsOutputInsideWine()
+    {
+        var layer = new CompatLayer { Id = "wine-system", DisplayName = "x", Kind = CompatKind.Wine, Path = "/usr/bin/wine" };
+        var r = Request(layer) with { Args = new[] { "-skipIntro", "a b", "50%" }, StdoutLog = "/d/Logs/hybrid-run.out.log", StderrLog = "/d/Logs/hybrid-run.err.log" };
+        Assert.Equal("@echo off\r\n"
+            + "\"Z:\\data\\Build\\RunHybrid\\AstroBot.exe\" -skipIntro \"a b\" 50%% "
+            + "1>\"Z:\\d\\Logs\\hybrid-run.out.log\" 2>\"Z:\\d\\Logs\\hybrid-run.err.log\"\r\n"
+            + "exit /b %ERRORLEVEL%\r\n", CompatRunner.LaunchScript(r));
+
+        var wrapped = Runner().WrapInCmd(r);
+        Assert.Equal("cmd.exe", wrapped.ExePath);   // plain Wine finds its own cmd.exe by name
+        Assert.Equal(new[] { "/c", WinPath.ToWindows(Path.Combine(_root, "Logs", "astrohybrid-launch.cmd")) }, wrapped.Args);
+        Assert.Equal(CompatRunner.LaunchScript(r), File.ReadAllText(Path.Combine(_root, "Logs", "astrohybrid-launch.cmd")));
+
+        Assert.Null(CompatRunner.LaunchScript(r with { ExePath = "/home/jos\u00e9/AstroBot.exe" }));   // cmd reads batch files in the OEM code page
+        var proton = new CompatLayer { Id = "p", DisplayName = "x", Kind = CompatKind.Proton, Path = "/p", NtdllPath = "/nowhere/lib/wine/x86_64-unix/ntdll.so" };
+        Assert.Null(Runner().WrapInCmd(r with { Layer = proton }));   // no cmd.exe on disk: start it unwrapped
     }
 
     [Fact]
