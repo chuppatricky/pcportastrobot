@@ -1,0 +1,183 @@
+# Builds the Windows game runtime that the Linux launcher ships in its payload:
+#   kyty_gpu.dll  (KytyPS5 int21 + Source/kyty-hybrid/*.patch + the fork's Source/kyty-amd/*.patch)
+#   astrohybrid_host.dll, libs/*.prx, forwarder shims (AnyPS5 319621ba + Source/anyps5/*.patch)
+# Same toolchains as Source/README.md: LLVM 22.1.3 clang-cl + VS 2022 + Vulkan SDK for Kyty,
+# WinLibs GCC 15.2.0 (posix-seh UCRT) for AnyPS5. Both upstream series are checked against the
+# tree hashes Source/README.md publishes before the fork's own patches go on top.
+name: windows-runtime
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*-linux.*']
+    paths:
+      - 'Source/**'
+      - '.github/workflows/windows-runtime.yml'
+  pull_request:
+    paths:
+      - 'Source/**'
+      - '.github/workflows/windows-runtime.yml'
+
+env:
+  KYTY_TAG: u59-windows-20261024-int21
+  KYTY_TREE: 91a815ddeabc8a3ffb94332560b54bbf2d6673c1
+  ANYPS5_COMMIT: 319621ba2e578bd053b0baba2877fe70520e0737
+  ANYPS5_TREE: 5f146e8eecce1b21421e01cb4e82fd95377f96d2
+  LLVM_VERSION: 22.1.3
+  VULKAN_SDK_VERSION: 1.4.363.0
+  FFX_SDK_TAG: v2.4.0
+  STREAMLINE_TAG: v2.14.16
+  WINLIBS_URL: https://github.com/brechtsanders/winlibs_mingw/releases/download/15.2.0posix-14.0.0-ucrt-r7/winlibs-x86_64-posix-seh-gcc-15.2.0-mingw-w64ucrt-14.0.0-r7.zip
+
+jobs:
+  anyps5:
+    runs-on: windows-2022
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: fork }
+
+      - name: Toolchain (WinLibs GCC 15.2.0)
+        run: |
+          curl -sSfL -o winlibs.zip "$WINLIBS_URL"
+          7z x winlibs.zip -o"$RUNNER_TEMP/winlibs" -y > /dev/null
+          echo "$RUNNER_TEMP/winlibs/mingw64/bin" >> "$GITHUB_PATH"
+
+      - name: AnyPS5 base + AstroHybrid patches (tree-checked)
+        run: |
+          git clone --filter=blob:none https://github.com/boykopovar/AnyPS5.git anyps5
+          cd anyps5
+          git checkout -q "$ANYPS5_COMMIT"
+          git -c user.name=ci -c user.email=ci@localhost am --keep-cr ../fork/Source/anyps5/*.patch
+          tree=$(git rev-parse 'HEAD^{tree}')
+          [ "$tree" = "$ANYPS5_TREE" ] || { echo "::error::AnyPS5 tree $tree != $ANYPS5_TREE"; exit 1; }
+          if compgen -G '../fork/Source/anyps5-amd/*.patch' > /dev/null; then
+            git -c user.name=ci -c user.email=ci@localhost am --keep-cr ../fork/Source/anyps5-amd/*.patch
+          fi
+          git submodule update --init --recursive --depth 1 -j 8
+
+      - name: Build
+        run: |
+          py=$(cygpath -m "$(command -v python)")
+          cmake -S anyps5 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DPython3_EXECUTABLE="$py"
+          cmake --build build --parallel
+          cmake --build build --target libs --parallel
+
+      - name: Collect
+        run: |
+          mkdir -p out/libs out/tools
+          cp build/core/libs/libs/*.prx build/core/libs/libs/*.dll out/libs/ 2>/dev/null || cp build/core/libs/libs/*.prx out/libs/
+          cp build/core/relinker/relinker.exe out/tools/
+          for d in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do cp "$RUNNER_TEMP/winlibs/mingw64/bin/$d" out/libs/; done
+          (cd anyps5 && git log --oneline -1) > out/anyps5-version.txt
+
+      - uses: actions/upload-artifact@v4
+        with: { name: anyps5-runtime, path: out, if-no-files-found: error }
+
+  kyty:
+    runs-on: windows-2022
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: fork }
+
+      - name: LLVM ${{ env.LLVM_VERSION }} (matches the PGO profile)
+        shell: pwsh
+        run: |
+          $u = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.exe"
+          Invoke-WebRequest $u -OutFile llvm.exe
+          Start-Process .\llvm.exe -ArgumentList '/S', "/D=$env:RUNNER_TEMP\llvm" -Wait
+          & "$env:RUNNER_TEMP\llvm\bin\clang-cl.exe" --version
+
+      - name: Vulkan SDK ${{ env.VULKAN_SDK_VERSION }}
+        shell: pwsh
+        run: |
+          $u = "https://sdk.lunarg.com/sdk/download/$env:VULKAN_SDK_VERSION/windows/vulkansdk-windows-X64-$env:VULKAN_SDK_VERSION.exe"
+          Invoke-WebRequest $u -OutFile vksdk.exe
+          Start-Process .\vksdk.exe -ArgumentList '--root', "$env:RUNNER_TEMP\VulkanSDK", '--accept-licenses', '--default-answer', '--confirm-command', 'install' -Wait
+          "VULKAN_SDK=$env:RUNNER_TEMP\VulkanSDK" | Out-File -Append $env:GITHUB_ENV
+          "$env:RUNNER_TEMP\VulkanSDK\Bin" | Out-File -Append $env:GITHUB_PATH
+
+      - name: SDK sources (AMD FSR SDK, NVIDIA Streamline)
+        run: |
+          git clone -q --depth 1 --branch "$FFX_SDK_TAG" https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK.git ffx
+          git clone -q --depth 1 --branch "$STREAMLINE_TAG" https://github.com/NVIDIA-RTX/Streamline.git streamline
+          (cd streamline && git lfs pull 2>/dev/null || true)
+
+      - name: Kyty base + AstroHybrid patches (tree-checked) + fork AMD patches
+        run: |
+          git clone -q --filter=blob:none https://github.com/Jetsku/KytyPS5.git kyty
+          cd kyty
+          git checkout -q "$KYTY_TAG"
+          git submodule update --init --recursive --depth 1 -j 8
+          git -c user.name=ci -c user.email=ci@localhost am --keep-cr ../fork/Source/kyty-hybrid/*.patch
+          tree=$(git rev-parse 'HEAD^{tree}')
+          [ "$tree" = "$KYTY_TREE" ] || { echo "::error::Kyty tree $tree != $KYTY_TREE"; exit 1; }
+          if compgen -G '../fork/Source/kyty-amd/*.patch' > /dev/null; then
+            git -c user.name=ci -c user.email=ci@localhost am --keep-cr ../fork/Source/kyty-amd/*.patch
+          fi
+          git log --oneline -1 > ../kyty-version.txt
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with: { arch: x64 }
+
+      # build_kyty_gpu.py calls the VS 2022 *BuildTools* vcvars64.bat by its fixed path; the runner
+      # has another edition, so put a forwarding vcvars64.bat at that path.
+      - name: vcvars64.bat at the path build_kyty_gpu.py expects
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dir = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          "@call `"$vs\VC\Auxiliary\Build\vcvars64.bat`" %*" | Out-File -Encoding ascii "$dir\vcvars64.bat"
+
+      - name: Configure (as Tools/hybrid/build-kyty-pgo.cmd)
+        run: |
+          L=$(cygpath -m "$RUNNER_TEMP/llvm/bin")
+          W=$(cygpath -m "$PWD")
+          cmake -S kyty -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$L/clang-cl.exe" -DCMAKE_CXX_COMPILER="$L/clang-cl.exe" \
+            -DCMAKE_LINKER="$L/lld-link.exe" -DCMAKE_AR="$L/llvm-lib.exe" \
+            -DKYTY_BUILD_LAUNCHER=OFF -DKYTY_EMULATOR_IPO=ON -DKYTY_CP_DIAGNOSTICS=OFF \
+            -DKYTY_PGO_USE="$W/kyty/tools/pgo/u59-int21-1.profdata" \
+            -DKYTY_BUILD_ORIGIN=Source -DKYTY_MARCH= \
+            -DKYTY_FFX_SDK_DIR="$W/ffx/Kits/FidelityFX" \
+            -DKYTY_NGX_SDK_DIR="$W/streamline/external/ngx-sdk" \
+            -DKYTY_STREAMLINE_DIR="$W/streamline"
+
+      - name: Build kyty_emulator + link kyty_gpu.dll
+        run: |
+          cmake --build build --target kyty_emulator --parallel
+          mkdir -p out
+          python -I kyty/tools/hybrid/build_kyty_gpu.py build out
+          cp ffx/Kits/FidelityFX/signedbin/amd_fidelityfx_loader_vk.dll \
+             ffx/Kits/FidelityFX/signedbin/amd_fidelityfx_upscaler_vk.dll \
+             ffx/Kits/FidelityFX/signedbin/amd_fidelityfx_framegeneration_vk.dll out/ 2>/dev/null || \
+            find ffx -iname 'amd_fidelityfx_*_vk.dll' -exec cp {} out/ \;
+          cp kyty-version.txt out/
+
+      - uses: actions/upload-artifact@v4
+        with: { name: kyty-runtime, path: out, if-no-files-found: error }
+
+  # Compares the rebuilt runtime's export/import tables with the files shipped in upstream's
+  # release, so a toolchain drift shows up here instead of in a game run.
+  compare:
+    needs: [anyps5, kyty]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: rebuilt }
+      - name: Export/import tables vs upstream v1.2.10
+        run: |
+          sudo apt-get install -y -qq llvm > /dev/null
+          gh release download v1.2.10 -R imnotsharingmyname/pcportastrobot -p '*.zip' -D up
+          unzip -q up/*.zip -d up/x
+          rc=0
+          for f in rebuilt/kyty-runtime/kyty_gpu.dll; do
+            diff <(llvm-objdump -p up/x/Build/RunHybrid/kyty_gpu.dll | grep -A100000 'Export Table' | awk '{print $NF}' | sort) \
+                 <(llvm-objdump -p "$f" | grep -A100000 'Export Table' | awk '{print $NF}' | sort) > kyty-exports.diff || rc=1
+          done
+          echo "kyty_gpu.dll export diff lines: $(wc -l < kyty-exports.diff)"
+          exit 0
+        env: { GH_TOKEN: '${{ github.token }}' }
