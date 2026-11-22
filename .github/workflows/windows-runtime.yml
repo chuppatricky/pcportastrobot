@@ -34,7 +34,11 @@ jobs:
     runs-on: windows-2022
     defaults: { run: { shell: bash } }
     steps:
-      - uses: actions/checkout@v4
+      # Byte-exact checkouts: the runner's Git converts LF to CRLF by default, and the patch series
+      # (applied with git am --keep-cr, as Source/README.md does) only apply to the bytes they were made on.
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
         with: { path: fork }
 
       - name: Toolchain (WinLibs GCC 15.2.0)
@@ -59,6 +63,13 @@ jobs:
       - name: Build
         run: |
           py=$(cygpath -m "$(command -v python)")
+          # WinLibs' CMake cannot verify TLS (it has no CA certificates), and ffmpeg-core downloads its
+          # prebuilt package while configuring. Fetch it with curl to the path its CMakeLists checks
+          # first (build/externals/<submodule short SHA>-ffmpeg-mingw-x64.zip); configure only unpacks it.
+          sha=$(git -C anyps5/3rdparty/ffmpeg-core rev-parse --short=12 HEAD)
+          mkdir -p build/externals
+          curl -sSfL -o "build/externals/$sha-ffmpeg-mingw-x64.zip" \
+            "https://github.com/KytyPS5/ext-ffmpeg-core/releases/download/$sha/ffmpeg-mingw-x64.zip"
           cmake -S anyps5 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DPython3_EXECUTABLE="$py"
           cmake --build build --parallel
           cmake --build build --target libs --parallel
@@ -78,7 +89,9 @@ jobs:
     runs-on: windows-2022
     defaults: { run: { shell: bash } }
     steps:
-      - uses: actions/checkout@v4
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
         with: { path: fork }
 
       - name: LLVM ${{ env.LLVM_VERSION }} (matches the PGO profile)
@@ -165,7 +178,7 @@ jobs:
     needs: [anyps5, kyty]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with: { path: rebuilt }
       - name: Export/import tables vs upstream v1.2.10
