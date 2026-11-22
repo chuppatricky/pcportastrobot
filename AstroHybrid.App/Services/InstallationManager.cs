@@ -186,12 +186,12 @@ namespace AstroHybrid.App.Services
                 "kyty_gpu.dll",
                 "astrohybrid_host.dll",
                 "u59-preset.cmd",
-                "libs\\libc.prx",
-                "libs\\libkernel.prx",
-                "libs\\libScePad.prx",
-                "libs\\libSceAgc.prx",
-                "libs\\libSceAgcDriver.prx",
-                "libs\\libSceVideoOut.prx"
+                Path.Combine("libs", "libc.prx"),
+                Path.Combine("libs", "libkernel.prx"),
+                Path.Combine("libs", "libScePad.prx"),
+                Path.Combine("libs", "libSceAgc.prx"),
+                Path.Combine("libs", "libSceAgcDriver.prx"),
+                Path.Combine("libs", "libSceVideoOut.prx")
             };
 
             foreach (var file in requiredFiles)
@@ -347,7 +347,12 @@ namespace AstroHybrid.App.Services
         {
             try
             {
-                var (titleId, version) = GameSetup.ReadParam(Path.Combine(_rootDirectory, "Build", "RunHybrid", "app0"));
+                var runHybrid = Path.Combine(_rootDirectory, "Build", "RunHybrid");
+                // sce_sys read through APS5_PATH_ALIASES (#135): its parent is the dump.
+                var root = GameSetup.ReadApp0Aliases(runHybrid).TryGetValue("sce_sys", out var sceSys)
+                    ? Path.GetDirectoryName(sceSys) ?? Path.Combine(runHybrid, "app0")
+                    : Path.Combine(runHybrid, "app0");
+                var (titleId, version) = GameSetup.ReadParam(root);
                 return (string.IsNullOrEmpty(titleId) ? null! : titleId, string.IsNullOrEmpty(version) ? null! : version);
             }
             catch

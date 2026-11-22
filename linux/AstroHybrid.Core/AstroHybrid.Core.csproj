@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shared, UI-free launcher logic. Upstream's portable files are compiled
+       straight from AstroHybrid.App so upstream changes merge for free. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AstroHybrid.Core</RootNamespace>
+    <AssemblyName>AstroHybrid.Core</AssemblyName>
+    <NoWarn>$(NoWarn);CA1416;SYSLIB0014</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../AstroHybrid.App/Models/*.cs" LinkBase="Upstream/Models" />
+    <Compile Include="../../AstroHybrid.App/Services/SettingsManager.cs;../../AstroHybrid.App/Services/RumbleSetting.cs;../../AstroHybrid.App/Services/SelfUnwrapper.cs;../../AstroHybrid.App/Services/GameValidator.cs;../../AstroHybrid.App/Services/GameSetup.cs;../../AstroHybrid.App/Services/LauncherService.cs;../../AstroHybrid.App/Services/InstallationManager.cs;../../AstroHybrid.App/Services/BuildManager.cs" LinkBase="Upstream/Services" />
+  </ItemGroup>
+</Project>

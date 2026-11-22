@@ -1,0 +1,281 @@
+From bc0d11cb76e823349d95685db2567bf4f598a53a Mon Sep 17 00:00:00 2001
+From: chuppatricky <74110004+chuppatricky@users.noreply.github.com>
+Date: Sat, 21 Nov 2026 01:24:49 -0600
+Subject: fix(libc): answer /app0 lookups under Wine from one listing per
+ directory
+
+Wine matches each path component case-insensitively itself: on a
+case-sensitive Linux file system a lookup of a missing name lists its
+whole directory, once for every Win32 call made on that path, and Wine
+does not implement FileCaseSensitiveInfo, so MatchNames listed it once
+more (with a stat per entry). Astro Bot looks up thousands of missing
+names in data/prein/*/odx (2,500-24,500 entries) while a level loads:
+~25 ms each, 2-6 minutes per level and multi-second stalls on the main
+thread (the galaxy flight drops to ~3 fps). Most of those lookups are
+module lookups: sceKernelStat, lstat and read-only sceKernelOpen resolve
+with module=true (a missing last name may be a relinked
+<name>.guest.prx), which make six Win32 calls per missing name.
+
+Under Wine:
+- every directory counts as case-insensitive, so a name is matched
+  with one FindFirstFileExW instead of a full listing;
+- /app0 (read-only game content) names are answered from one listing
+  per directory (ReadOnlyNameCache), module lookups included: a name
+  found resolves to its on-disk spelling, which Wine finds without
+  listing; a missing name resolves into the empty
+  Build/RunHybrid/_aps5_absent, so every caller still reports ENOENT
+  from its own calls, and Wine answers them at once.
+Names the cache does not match exactly as the resolver does (non-ASCII,
+wildcards, '.', '..', a trailing separator, two entries differing only
+in case, a file used as a directory, a missing last name of a module
+lookup with a relinked module beside it) resolve the usual way. Off on
+Windows, with app0.zar, and with APS5_NO_APP0_NAME_CACHE.
+---
+ .../prx/libc/include/ReadOnlyNameCache.hpp    | 131 ++++++++++++++++++
+ core/libs/prx/libc/src/General.cpp            |  71 ++++++++++
+ 2 files changed, 202 insertions(+)
+ create mode 100644 core/libs/prx/libc/include/ReadOnlyNameCache.hpp
+
+diff --git a/core/libs/prx/libc/include/ReadOnlyNameCache.hpp b/core/libs/prx/libc/include/ReadOnlyNameCache.hpp
+new file mode 100644
+index 0000000000..62c08c244d
+--- /dev/null
++++ b/core/libs/prx/libc/include/ReadOnlyNameCache.hpp
+@@ -0,0 +1,131 @@
++#ifndef CORE_LIBS_PRX_LIBC_INCLUDE_READONLYNAMECACHE_HPP
++#define CORE_LIBS_PRX_LIBC_INCLUDE_READONLYNAMECACHE_HPP
++
++#include <filesystem>
++#include <functional>
++#include <map>
++#include <mutex>
++#include <optional>
++#include <set>
++#include <span>
++#include <string>
++#include <string_view>
++#include <utility>
++#include <vector>
++
++// Case-insensitive lookups in a tree whose contents do not change while the game runs (the game's
++// /app0), answered from one listing per directory.
++//
++// Wine matches every path component case-insensitively itself, by listing the directory whenever the
++// exact name is not there, so on a case-sensitive Linux file system each lookup of a missing name lists
++// its whole directory, once for every Win32 call made on that path. Astro Bot looks up thousands of
++// missing names in data/prein/*/odx (2,500-24,500 entries each) while a level loads: ~25 ms each, minutes
++// per level. With this cache a lookup is a map lookup; a name found resolves to its on-disk spelling (which
++// Wine then finds without listing), and a missing name resolves into an empty directory (where every
++// Win32 call on it misses at once and the callers report ENOENT as before).
++//
++// Internal to the file that includes it (libc's General.cpp): libc.prx exports every symbol with external
++// linkage, and this class adds none.
++namespace {
++
++class ReadOnlyNameCache {
++public:
++    struct Entry {
++        std::string name;              // as the resolver compares names (UTF-8)
++        std::filesystem::path native;  // as listed, appended to the directory's host path
++    };
++    // Lists a directory: nullopt when it cannot be listed (not a directory, an error).
++    using Lister = std::function<std::optional<std::vector<Entry>>(const std::filesystem::path& directory)>;
++
++    explicit ReadOnlyNameCache(Lister lister) : _lister(std::move(lister)) {}
++
++    // ASCII case folding, as the resolver's SameName.
++    static std::string Fold(std::string_view name) {
++        std::string folded(name);
++        for (auto& c : folded) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c + ('a' - 'A'));
++        return folded;
++    }
++
++    // Names that can be matched here exactly as the resolver (ASCII folding) and Wine would match them;
++    // anything else (empty, ".", "..", non-ASCII, characters Win32 reads specially) resolves the usual way.
++    static bool Plain(std::string_view name) {
++        if (name.empty() || name == "." || name == ".." || name.back() == '.' || name.back() == ' ') return false;
++        for (const unsigned char c : name) {
++            if (c < 0x20 || c >= 0x7f) return false;
++            if (c == '*' || c == '?' || c == '<' || c == '>' || c == '|' || c == '"' || c == ':' || c == '\\' || c == '/') return false;
++        }
++        return true;
++    }
++
++    // root/relative[0]/relative[1]/... with each name in its on-disk spelling, or, from the first name that is
++    // not there, absent/<that name>/<the rest>. nullopt: resolve this path the usual way (a name this cache does
++    // not match, a directory that cannot be listed, two entries differing only in case).
++    //
++    // moduleSuffix (module lookups: sceKernelStat, lstat, read-only sceKernelOpen): when the last name is not
++    // there but <last name><moduleSuffix> is (a relinked module, which the resolver then returns instead),
++    // nullopt, so the resolver makes that substitution itself.
++    std::optional<std::filesystem::path> Resolve(const std::filesystem::path& root, std::span<const std::string> relative,
++                                                 const std::filesystem::path& absent, std::string_view moduleSuffix = {}) {
++        if (relative.empty()) return std::nullopt;
++        for (const auto& name : relative) if (!Plain(name)) return std::nullopt;
++        std::lock_guard lock(_mutex);
++        auto current = root;
++        for (std::size_t i = 0; i < relative.size(); ++i) {
++            const auto* directory = Listing(current);
++            if (directory == nullptr) return std::nullopt;
++            const auto key = Fold(relative[i]);
++            if (directory->ambiguous.contains(key)) return std::nullopt;
++            const auto found = directory->names.find(key);
++            if (found == directory->names.end()) {
++                if (!moduleSuffix.empty() && i + 1 == relative.size()) {
++                    const auto relinked = key + Fold(moduleSuffix);
++                    if (directory->names.contains(relinked) || directory->ambiguous.contains(relinked)) return std::nullopt;
++                }
++                auto result = absent;
++                for (std::size_t j = i; j < relative.size(); ++j) result /= std::filesystem::path(relative[j]);
++                return result;
++            }
++            current /= found->second.native;
++        }
++        return current;
++    }
++
++    std::size_t Directories() const {
++        std::lock_guard lock(_mutex);
++        return _directories.size();
++    }
++
++private:
++    struct OnDisk {
++        std::filesystem::path native;   // a type of this file's own, so no std instantiation is exported
++    };
++    struct Directory {
++        bool listed = false;
++        std::map<std::string, OnDisk> names;  // folded name -> on-disk name
++        std::set<std::string> ambiguous;
++    };
++
++    const Directory* Listing(const std::filesystem::path& directory) {
++        const auto key = directory.native();
++        if (const auto known = _directories.find(key); known != _directories.end()) return known->second.listed ? &known->second : nullptr;
++        Directory entry;
++        if (auto listed = _lister(directory)) {
++            entry.listed = true;
++            for (auto& [name, native] : *listed) {
++                if (name == "." || name == "..") continue;
++                const auto folded = Fold(name);
++                if (!entry.names.emplace(folded, OnDisk{std::move(native)}).second) entry.ambiguous.insert(folded);
++            }
++        }
++        const auto [stored, inserted] = _directories.emplace(key, std::move(entry));
++        return stored->second.listed ? &stored->second : nullptr;
++    }
++
++    Lister _lister;
++    mutable std::mutex _mutex;
++    std::map<std::filesystem::path::string_type, Directory> _directories;
++};
++
++}  // namespace
++
++#endif
+diff --git a/core/libs/prx/libc/src/General.cpp b/core/libs/prx/libc/src/General.cpp
+index 21c5e363ce..6716026cb8 100644
+--- a/core/libs/prx/libc/src/General.cpp
++++ b/core/libs/prx/libc/src/General.cpp
+@@ -53,6 +53,7 @@
+ #include "prx/libc/include/GuestArena.hpp"
+ #include "prx/libc/include/ApplicationHeap.hpp"
+ #include "prx/libc/include/GuestArena.hpp"
++#include "prx/libc/include/ReadOnlyNameCache.hpp"
+ 
+ namespace {
+ // Guest prefixes (without leading slashes) mapped to host directories, e.g. save-data mount points:
+@@ -194,7 +195,19 @@ bool SameRelinkedStem(std::string_view filename, std::string_view name) {
+ }
+ 
+ #ifdef _WIN32
++// Wine matches every path component case-insensitively itself and does not implement
++// FileCaseSensitiveInfo, so under Wine every directory counts as case-insensitive: a name is then
++// matched with one FindFirstFileExW instead of listing the whole directory.
++bool RunningOnWine() {
++    static const bool wine = [] {
++        const auto ntdll = GetModuleHandleW(L"ntdll.dll");
++        return ntdll != nullptr && GetProcAddress(ntdll, "wine_get_version") != nullptr;
++    }();
++    return wine;
++}
++
+ bool CaseInsensitiveDirectoryWindows(const std::filesystem::path& directory) {
++    if (RunningOnWine()) return true;
+     const auto handle = CreateFileW(directory.c_str(), FILE_READ_ATTRIBUTES,
+         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+     if (handle == INVALID_HANDLE_VALUE) return false;
+@@ -400,12 +413,70 @@ std::optional<std::filesystem::path> ProvidedPath(const WorkingDirectory& state,
+     if (provided.empty()) return std::nullopt;
+     return provided.make_preferred();
+ }
++#ifdef _WIN32
++// /app0 under Wine: names answered from one listing per directory (ReadOnlyNameCache.hpp). Off with
++// APS5_NO_APP0_NAME_CACHE, on Windows itself, and when /app0 comes from an app0.zar archive.
++std::optional<std::vector<ReadOnlyNameCache::Entry>> ListDirectoryWindows(const std::filesystem::path& directory) {
++    WIN32_FIND_DATAW data{};
++    auto pattern = directory;
++    pattern /= L"*";
++    const auto handle = FindFirstFileExW(pattern.c_str(), FindExInfoBasic, &data, FindExSearchNameMatch, nullptr, 0);
++    if (handle == INVALID_HANDLE_VALUE) return std::nullopt;
++    const std::unique_ptr<void, decltype(&FindClose)> owner(handle, &FindClose);
++    std::vector<ReadOnlyNameCache::Entry> entries;
++    try {
++        do {
++            const std::filesystem::path name(data.cFileName);
++            entries.push_back({name.string(), name});
++        } while (FindNextFileW(handle, &data));
++    } catch (const std::exception&) {
++        return std::nullopt;   // a name the narrow encoding cannot hold: this directory resolves the usual way
++    }
++    if (GetLastError() != ERROR_NO_MORE_FILES) return std::nullopt;
++    return entries;
++}
++
++// The empty directory missing /app0 names resolve into (Build/RunHybrid/_aps5_absent), or nullopt when
++// the cache is off.
++const std::optional<std::filesystem::path>& App0AbsentDirectory() {
++    static const std::optional<std::filesystem::path> directory = []() -> std::optional<std::filesystem::path> {
++        if (!RunningOnWine() || std::getenv("APS5_NO_APP0_NAME_CACHE") != nullptr) return std::nullopt;
++        auto archive = Directories().root;
++        archive /= L"app0.zar";
++        if (GetFileAttributesW(archive.c_str()) != INVALID_FILE_ATTRIBUTES) return std::nullopt;
++        auto absent = Directories().root;
++        absent /= L"_aps5_absent";
++        if (!CreateDirectoryW(absent.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) return std::nullopt;
++        const auto attributes = GetFileAttributesW(absent.c_str());
++        if (attributes == INVALID_FILE_ATTRIBUTES || (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0) return std::nullopt;
++        return absent;
++    }();
++    return directory;
++}
++
++ReadOnlyNameCache& App0Names() {
++    static auto* cache = new ReadOnlyNameCache(ListDirectoryWindows);
++    return *cache;
++}
++#endif
++
+ std::filesystem::path HostPath(WorkingDirectory& state, const std::vector<std::string>& names, bool module = false) {
+     if (!module) {
+         if (auto overlaid = ResolveOverlay(JoinNames(names))) return *overlaid;
+     }
+     if (auto aliased = ResolveAlias(JoinNames(names), module)) return *aliased;
+     if (auto provided = ProvidedPath(state, names)) return *provided;
++#ifdef _WIN32
++    // Module lookups too (sceKernelStat, lstat and read-only sceKernelOpen resolve as modules): the cache
++    // leaves a missing last name with a relinked module beside it to the resolver.
++    if (!names.empty() && SameName(names.front(), "app0")) {
++        if (const auto& absent = App0AbsentDirectory()) {
++            static const std::string relinked = RelinkedModuleName("").string();  // ".guest.prx"
++            const auto suffix = module ? std::string_view(relinked) : std::string_view();
++            if (auto cached = App0Names().Resolve(state.root, names, *absent, suffix)) return cached->make_preferred();
++        }
++    }
++#endif
+     return ResolveHostPath(state.root, names, module).make_preferred();
+ }
+ void RequireHostDirectory(WorkingDirectory& state, const std::vector<std::string>& names) {
+-- 
+2.56.1
+

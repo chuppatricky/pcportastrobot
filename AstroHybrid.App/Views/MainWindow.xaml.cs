@@ -12,9 +12,44 @@ namespace AstroHybrid.App.Views
         public MainWindow()
         {
             InitializeComponent();
+            ClampToWorkArea();
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             if (version != null)
                 Title = $"AstroHybrid v{version.Major}.{version.Minor}.{version.Build}";
+        }
+
+        private void ClampToWorkArea()
+        {
+            var work = SystemParameters.WorkArea;
+            MaxWidth = work.Width;
+            MaxHeight = work.Height;
+            if (Width > work.Width * 0.94) Width = Math.Max(MinWidth, work.Width * 0.92);
+            if (Height > work.Height * 0.94) Height = Math.Max(MinHeight, work.Height * 0.92);
+        }
+
+        private void Window_StateChanged(object sender, EventArgs e)
+        {
+            if (RootWindowBorder == null) return;
+            RootWindowBorder.Padding = WindowState == WindowState.Maximized
+                ? new Thickness(6)
+                : new Thickness(0);
+        }
+
+        private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaximizeRestoreButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
     }
 

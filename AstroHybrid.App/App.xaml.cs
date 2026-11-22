@@ -223,6 +223,8 @@ namespace AstroHybrid.App
                 File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
             }
             catch { }
+            // Also in the debug log, the file people attach to their reports (#137 had only that one).
+            LogDebug($"ERROR (details also in astrohybrid-error.log): {ex}");
         }
     }
 }

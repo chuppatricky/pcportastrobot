@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             xmlns:local="using:AstroHybrid.Linux.Views"
+             x:Class="AstroHybrid.Linux.Views.AdvancedView" x:DataType="vm:AdvancedSettingsViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Renderer" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Lighting" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding LightingLabels}" Index="{Binding LightingIndex}" /></Grid>
+        <TextBlock Classes="note" Text="{Binding LightingNote}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Game Speed" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Speed" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding SpeedLabels}" Index="{Binding SpeedIndex}" /></Grid>
+        <TextBlock Classes="note" Text="{Binding SpeedNote}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Language" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Game language" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding LanguageLabels}" Index="{Binding LanguageIndex}" /></Grid>
+        <TextBlock Classes="note" Text="{Binding LanguageNote}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h2" Text="Runtime Options" />
+        <CheckBox Content="Hang Watchdog (record diagnostics on freeze)" IsChecked="{Binding HangWatchdog}" />
+        <TextBlock Classes="note" Text="{Binding HangWatchdogNote}" />
+        <CheckBox Content="Persistent Shader Cache (eliminates compile hitches)" IsChecked="{Binding ShaderCache}" />
+        <TextBlock Classes="note" Text="{Binding ShaderCacheNote}" />
+        <CheckBox Content="Draw Prep Tuning (reduces CP spin with background apps)" IsChecked="{Binding DrawPrepTuning}" />
+        <TextBlock Classes="note" Text="{Binding DrawPrepNote}" />
+        <CheckBox Content="Motion Controls (accelerometer/gyroscope)" IsChecked="{Binding MotionControls}" />
+        <TextBlock Classes="note" Text="{Binding MotionNote}" />
+        <CheckBox Content="Trigger State (DualSense adaptive triggers)" IsChecked="{Binding TriggerState}" />
+        <TextBlock Classes="note" Text="{Binding TriggerNote2}" />
+        <CheckBox Content="Skip Intro Videos (-skipIntro)" IsChecked="{Binding SkipIntro}" />
+        <TextBlock Classes="note" Text="{Binding SkipIntroNote}" />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Process Priority" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Process Priority" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding PriorityOptions}" Value="{Binding Priority}" MinWidth="200" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Command Processor Priority" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding CpPriorityOptions}" Value="{Binding CpPriority}" MinWidth="150" /></Grid>
+        <TextBlock Classes="note" Text="{Binding PriorityNote}" />
+        <TextBlock Classes="note" Text="On Linux, a raised process priority uses the nice value; if your system does not allow it, the game runs at normal priority." />
+      </StackPanel>
+    </Border>
+    <Border Classes="card">
+      <Expander Header="Experimental Features" IsExpanded="{Binding IsExperimentalExpanded}" HorizontalAlignment="Stretch">
+        <TextBlock Classes="note" Text="{Binding ExperimentalWarning}" />
+      </Expander>
+    </Border>
+  </StackPanel>
+</UserControl>

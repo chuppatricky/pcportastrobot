@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             xmlns:local="using:AstroHybrid.Linux.Views"
+             x:Class="AstroHybrid.Linux.Views.GraphicsView" x:DataType="vm:GraphicsSettingsViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel>
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Graphics" />
+          <Button Grid.Column="1" Content="Restore Defaults" Command="{Binding RestoreDefaultsCommand}" VerticalAlignment="Top" />
+        </Grid>
+        <TextBlock Classes="note" Text="{Binding HardwareNote}" Margin="0,0,0,10" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Preset" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding PresetLabels}" Index="{Binding PresetIndex}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Upscaling" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding UpscaleLabels}" Index="{Binding UpscaleIndex}" /></Grid>
+        <Grid Classes="row" ColumnDefinitions="230,*" IsVisible="{Binding ShowFrameGen}"><TextBlock Classes="label" Text="Frame Generation" />
+          <local:StableComboBox Grid.Column="1" Items="{Binding FrameGenLabels}" Index="{Binding FrameGenIndex}" IsEnabled="{Binding IsFrameGenAvailable}" /></Grid>
+        <TextBlock Classes="note" Text="{Binding FrameGenUnavailableNote}" IsVisible="{Binding ShowFrameGenUnavailable}" />
+        <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="{Binding FpsLimitLabel}" />
+          <Panel Grid.Column="1">
+            <local:StableComboBox Items="{Binding FpsLabels}" Index="{Binding FpsIndex}" IsVisible="{Binding IsFpsLimitEnabled}" />
+            <local:StableComboBox Items="{Binding FrameGenTargetLabels}" Index="{Binding FrameGenTargetIndex}" IsVisible="{Binding IsFrameGenTargetEnabled}" />
+          </Panel></Grid>
+        <TextBlock Classes="note" Text="{Binding FrameGenNote}" />
+        <TextBlock Classes="note" Text="{Binding FpsLimitNote}" />
+        <TextBlock Classes="note" Text="{Binding ActiveSummary}" Margin="0,10,0,0" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <Expander Header="Advanced" IsExpanded="{Binding IsAdvancedExpanded}" HorizontalAlignment="Stretch">
+        <StackPanel>
+          <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Resolution" />
+            <local:StableComboBox Grid.Column="1" Items="{Binding ResolutionLabels}" Index="{Binding ResolutionIndex}" /></Grid>
+          <CheckBox Content="Start in fullscreen" IsChecked="{Binding Fullscreen}" Margin="230,4,0,0" />
+          <CheckBox Content="Ultrawide 21:9 / 32:9 rendering" IsChecked="{Binding Ultrawide}" Margin="230,4,0,0" />
+          <TextBlock Classes="note" Text="{Binding UltrawideNote}" Margin="230,0,0,0" />
+          <Grid Classes="row" ColumnDefinitions="230,*" IsVisible="{Binding HasGpuChoice}"><TextBlock Classes="label" Text="Graphics card" />
+            <local:StableComboBox Grid.Column="1" Items="{Binding GpuLabels}" Index="{Binding GpuIndex}" /></Grid>
+          <TextBlock Classes="note" Text="{Binding GpuNote}" Margin="230,0,0,0" IsVisible="{Binding HasGpuChoice}" />
+          <CheckBox Content="VSync (no tearing; may add a little input delay)" IsChecked="{Binding VSync}" IsEnabled="{Binding IsVSyncAvailable}" Margin="230,8,0,0" />
+          <TextBlock Classes="note" Text="{Binding VSyncNote}" Margin="230,0,0,0" />
+          <Grid Classes="row" ColumnDefinitions="230,*" IsVisible="{Binding ShowDlssQuality}"><TextBlock Classes="label" Text="DLSS quality" />
+            <local:StableComboBox Grid.Column="1" Items="{Binding DlssQualityLabels}" Index="{Binding DlssQualityIndex}" /></Grid>
+          <CheckBox Content="NVIDIA Low Latency (Reflex)" IsChecked="{Binding LowLatency}" IsVisible="{Binding SupportsReflex}" Margin="230,4,0,0" />
+          <Grid Classes="row" ColumnDefinitions="230,*"><TextBlock Classes="label" Text="Performance overlay" />
+            <local:StableComboBox Grid.Column="1" Items="{Binding OverlayLabels}" Index="{Binding OverlayIndex}" /></Grid>
+          <TextBlock Classes="note" Text="In game: F2 shows/hides the overlay, Ctrl+F2 changes the frame-rate limit, F11 or Alt+Enter toggles fullscreen." />
+        </StackPanel>
+      </Expander>
+    </Border>
+  </StackPanel>
+</UserControl>

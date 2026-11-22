@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="AstroHybrid.Core/AstroHybrid.Core.csproj" />
+  <Project Path="AstroHybrid.Linux/AstroHybrid.Linux.csproj" />
+  <Project Path="AstroHybrid.Tests/AstroHybrid.Tests.csproj" />
+</Solution>

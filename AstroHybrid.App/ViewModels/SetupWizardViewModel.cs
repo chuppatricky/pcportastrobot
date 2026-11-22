@@ -164,6 +164,8 @@ namespace AstroHybrid.App.ViewModels
                     StatusMessage = "Game dump validated successfully!";
                     ProgressPercent = 100;
                     CanProceed = true;
+                    if (!string.IsNullOrEmpty(info.Warning))
+                        MessageBox.Show(info.Warning, "AstroHybrid - Game version", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 else
                 {

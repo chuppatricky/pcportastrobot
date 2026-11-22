@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AstroHybrid.App.ViewModels"
+             x:Class="AstroHybrid.Linux.Views.CompatibilityView" x:DataType="vm:CompatibilityViewModel">
+  <StackPanel>
+    <Border Classes="card">
+      <StackPanel>
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Classes="h2" Text="Compatibility Layer" />
+          <Button Grid.Column="1" Content="Scan again" Command="{Binding RescanCommand}" VerticalAlignment="Top" />
+        </Grid>
+        <TextBlock Classes="note" Margin="0,0,0,12"
+                   Text="Astro Bot is a Windows program here: pick the Wine or Proton build it runs through. Each one gets its own Wine prefix; your saves are shared by all of them. Every start is checked, so the game really runs on the build you pick." />
+        <ListBox Classes="layers" ItemsSource="{Binding Layers}" SelectedItem="{Binding Selected}" Background="Transparent">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:LayerItem">
+              <StackPanel Spacing="2">
+                <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                <TextBlock Classes="small" Text="{Binding Details}" />
+                <TextBlock Classes="small" Foreground="{StaticResource Warn}" Text="{Binding Warnings}" IsVisible="{Binding HasWarnings}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel Spacing="8">
+        <TextBlock Classes="h2" Text="Selected" />
+        <SelectableTextBlock Text="{Binding SelectedSummary}" TextWrapping="Wrap" />
+        <WrapPanel Margin="0,6,0,0">
+          <Button Classes="accent" Content="Test this layer" Command="{Binding TestCommand}" Margin="0,0,10,10" />
+          <Button Content="Prepare prefix" Command="{Binding PreparePrefixCommand}" Margin="0,0,10,10" />
+          <Button Content="Open prefix folder" Command="{Binding OpenPrefixCommand}" Margin="0,0,10,10" />
+          <Button Classes="danger" Content="Reset prefix" Command="{Binding ResetPrefixCommand}" Margin="0,0,10,10" />
+        </WrapPanel>
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding Busy}" />
+        <Panel>
+          <SelectableTextBlock Classes="note" Foreground="{StaticResource Good}" Text="{Binding TestResult}" IsVisible="{Binding TestOk}" />
+          <SelectableTextBlock Classes="note bad" Text="{Binding TestResult}" IsVisible="{Binding !TestOk}" />
+        </Panel>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel>
+        <TextBlock Classes="h2" Text="Last Game Start" />
+        <SelectableTextBlock Text="{Binding LastRun}" TextWrapping="Wrap" Foreground="{StaticResource Good}" IsVisible="{Binding LastRunOk}" />
+        <SelectableTextBlock Classes="bad" Text="{Binding LastRun}" TextWrapping="Wrap" IsVisible="{Binding !LastRunOk}" />
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h2" Text="Linux Options" />
+        <CheckBox Content="Run with GameMode (CPU governor and scheduling tweaks while playing)" IsChecked="{Binding GameMode}" IsEnabled="{Binding GameModeInstalled}" />
+        <TextBlock Classes="note" Text="GameMode is not installed (pacman -S gamemode)." IsVisible="{Binding !GameModeInstalled}" />
+        <CheckBox Content="MangoHud overlay (frame time, GPU and CPU load)" IsChecked="{Binding MangoHud}" />
+        <TextBlock Classes="label" Text="Extra environment variables (one KEY=VALUE per line)" Margin="0,12,0,4" />
+        <TextBox Text="{Binding ExtraEnv}" AcceptsReturn="True" MinHeight="80" FontFamily="monospace" Watermark="RADV_PERFTEST=...&#10;PROTON_..." />
+        <TextBlock Classes="note" Text="Passed to the game last, so they override AstroHybrid's own values." />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>
