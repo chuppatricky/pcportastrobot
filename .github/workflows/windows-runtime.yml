@@ -34,7 +34,11 @@ jobs:
     runs-on: windows-2022
     defaults: { run: { shell: bash } }
     steps:
-      - uses: actions/checkout@v4
+      # Byte-exact checkouts: the runner's Git converts LF to CRLF by default, and the patch series
+      # (applied with git am --keep-cr, as Source/README.md does) only apply to the bytes they were made on.
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
         with: { path: fork }
 
       - name: Toolchain (WinLibs GCC 15.2.0)
@@ -78,7 +82,9 @@ jobs:
     runs-on: windows-2022
     defaults: { run: { shell: bash } }
     steps:
-      - uses: actions/checkout@v4
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v5
         with: { path: fork }
 
       - name: LLVM ${{ env.LLVM_VERSION }} (matches the PGO profile)
@@ -165,7 +171,7 @@ jobs:
     needs: [anyps5, kyty]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with: { path: rebuilt }
       - name: Export/import tables vs upstream v1.2.10
