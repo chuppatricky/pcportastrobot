@@ -63,7 +63,11 @@ jobs:
       - name: Build
         run: |
           py=$(cygpath -m "$(command -v python)")
-          cmake -S anyps5 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DPython3_EXECUTABLE="$py"
+          # WinLibs' CMake has no TLS roots of its own, and ffmpeg-core downloads its package while
+          # configuring: verify against the CA bundle Git for Windows ships.
+          ca=$(cygpath -m /mingw64/etc/ssl/certs/ca-bundle.crt)
+          [ -f "$ca" ] || { echo "::error::no CA bundle at $ca"; exit 1; }
+          cmake -S anyps5 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DPython3_EXECUTABLE="$py" -DCMAKE_TLS_CAINFO="$ca"
           cmake --build build --parallel
           cmake --build build --target libs --parallel
 
